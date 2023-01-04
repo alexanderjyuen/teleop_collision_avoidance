@@ -26,6 +26,7 @@ class CollisionChecker:
         self._slow_down_distance = 10
         self._stopping_distance = 5
         self._velocity_scaling_factor = 1.0
+        self._last_cmd_recieved = rospy.get_time()
 
         self._setup_sub_pub()
         self._run()
@@ -33,8 +34,8 @@ class CollisionChecker:
     def _setup_sub_pub(self):
         rospy.loginfo("creating subscribers and publishers")
         self._laser_scan_sub = rospy.Subscriber("/front/scan_os3/filtered", LaserScan, self._laser_scan_callback)
-        self._cmd_vel_sub = rospy.Subscriber("/nav_vel_pre", Twist, self._cmd_vel_callback)
-        self._cmd_vel_pub = rospy.Publisher('/nav_vel', Twist, queue_size=10)
+        self._cmd_vel_sub = rospy.Subscriber("/formant_vel", Twist, self._cmd_vel_callback)
+        self._cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
         return
 
     def _laser_scan_callback(self, msg):
@@ -57,12 +58,17 @@ class CollisionChecker:
         self._cmd_vel.linear.x = self._cmd_vel.linear.x*self._velocity_scaling_factor
         rospy.loginfo('self._cmd_vel.linear.x %f', self._cmd_vel.linear.x)
         self._cmd_vel_pub.publish(self._cmd_vel)
+        self._last_cmd_recieved = rospy.get_time()
         return
 
 
     def _run(self):
         rate = rospy.Rate(0.5)
         while not rospy.is_shutdown():
+            if rospy.get_time() - self._last_cmd_recieved > 1.0:
+            	self._cmd_vel.linear.x = 0
+            	self._cmd_vel_pub.publish(self._cmd_vel)
+        
             rate.sleep()
 
 if __name__ == '__main__':
